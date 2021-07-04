@@ -1147,9 +1147,9 @@ impl TryFrom<&str> for Hand {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let cc = value.chars().collect::<Vec<_>>();
         if cc[0].is_digit(10) {
-            let x = cc[0] as usize - '0' as usize;
+            let x = cc[0] as usize - '1' as usize;
             let y = cc[1] as usize - 'a' as usize;
-            let ax = cc[2] as usize - '0' as usize;
+            let ax = cc[2] as usize - '1' as usize;
             let ay = cc[3] as usize - 'a' as usize;
             let with_promote = cc.len() == 5 && cc[4] == '+';
 
@@ -1182,19 +1182,22 @@ impl From<Hand> for String {
                 dy,
                 with_promote,
             } => {
-                mv.push((x + '0' as usize) as u8 as char);
+                let x = 8 - x;
+                let dx = -dx;
+                mv.push((x + '1' as usize) as u8 as char);
                 mv.push((y + 'a' as usize) as u8 as char);
-                mv.push((x as isize + '0' as isize + dx) as u8 as char);
+                mv.push((x as isize + '1' as isize + dx) as u8 as char);
                 mv.push((y as isize + 'a' as isize + dy) as u8 as char);
                 if with_promote {
                     mv.push('+');
                 }
             }
             Hand::Putting { piece, x, y } => {
+                let x = 8 - x;
                 let ch = PieceBoolPair(piece, true).into();
                 mv.push(ch);
                 mv.push('*');
-                mv.push((x + '0' as usize) as u8 as char);
+                mv.push((x + '1' as usize) as u8 as char);
                 mv.push((y + 'a' as usize) as u8 as char);
             }
         }
