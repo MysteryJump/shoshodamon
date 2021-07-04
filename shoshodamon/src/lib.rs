@@ -2,6 +2,8 @@
 #![allow(clippy::result_unit_err)]
 #![feature(bindings_after_at)]
 
+pub mod evaluator;
+
 use std::{
     cmp::Ordering,
     collections::{hash_map::Entry, HashMap},
@@ -506,15 +508,6 @@ impl Ban {
 
     pub fn is_check(&self, turn: bool) -> bool {
         let mut piece = None;
-
-        // for row in self.states.iter().enumerate() {
-        //     for column in row.1.iter().flatten().enumerate() {
-        //         if (column.1).piece == Piece::Ou && (column.1).turn == turn {
-        //             piece = Some(((row.0, column.0), column.1));
-        //         }
-        //     }
-        // }
-
         for x in 0..9 {
             for y in 0..9 {
                 if let Some(p) = &self.states[x][y] {
@@ -681,7 +674,7 @@ impl Ban {
             for y in 0..9 {
                 if let Some(s) = &self.states[x][y] {
                     if s.turn == turn {
-                        // TODO: Kaku and Hisha, Kyousha movement
+                        // TODO: Kaku and Kyousha movement
                         let moves = s.piece.get_near_piece_movement(turn, s.promoted);
                         for (_, _, dx, dy) in moves
                             .iter()
@@ -723,9 +716,374 @@ impl Ban {
                             }
                         }
 
-                        if s.piece == Piece::Hisha {}
-                        if s.piece == Piece::Kaku {}
-                        if s.piece == Piece::Kyosha {}
+                        if s.piece == Piece::Hisha {
+                            let mut xx1_ck = false;
+                            let mut xx2_ck = false;
+                            let mut yy1_ck = false;
+                            let mut yy2_ck = false;
+                            for i in 1..=8 {
+                                let xx1 = x as isize + i;
+                                let xx2 = x as isize - i;
+                                let yy1 = y as isize + i;
+                                let yy2 = y as isize - i;
+                                if !xx1_ck && (0..=8).contains(&xx1) {
+                                    let mut ban = (*self).clone();
+                                    if self.states[xx1 as usize][y].is_some() {
+                                        xx1_ck = true;
+                                    }
+                                    if ban.move_piece(x, y, -i, 0, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: i,
+                                                dy: 0,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, -i, 0, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: i,
+                                                dy: 0,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+
+                                if !xx2_ck && (0..=8).contains(&xx2) {
+                                    let mut ban = (*self).clone();
+                                    if self.states[xx2 as usize][y].is_some() {
+                                        xx2_ck = true;
+                                    }
+                                    if ban.move_piece(x, y, i, 0, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: -i,
+                                                dy: 0,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, i, 0, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: -i,
+                                                dy: 0,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+
+                                if !yy1_ck && (0..=8).contains(&yy1) {
+                                    let mut ban = (*self).clone();
+                                    if self.states[x][yy1 as usize].is_some() {
+                                        yy1_ck = true;
+                                    }
+                                    if ban.move_piece(x, y, 0, -i, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: 0,
+                                                dy: i,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, 0, -i, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: 0,
+                                                dy: i,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+
+                                if !yy2_ck && (0..=8).contains(&yy2) {
+                                    if self.states[x][yy2 as usize].is_some() {
+                                        yy2_ck = true;
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if ban.move_piece(x, y, 0, i, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: 0,
+                                                dy: -i,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, 0, i, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: 0,
+                                                dy: -i,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        if s.piece == Piece::Kaku {
+                            let mut x1y1_ck = false;
+                            let mut x2y1_ck = false;
+                            let mut x1y2_ck = false;
+                            let mut x2y2_ck = false;
+                            for i in 1..=8 {
+                                let xx1 = x as isize + i;
+                                let xx2 = x as isize - i;
+                                let yy1 = y as isize + i;
+                                let yy2 = y as isize - i;
+                                let xx1_contains = (0..=8).contains(&xx1);
+                                let xx2_contains = (0..=8).contains(&xx2);
+                                let yy1_contains = (0..=8).contains(&yy1);
+                                let yy2_contains = (0..=8).contains(&yy2);
+
+                                if !x1y1_ck && xx1_contains && yy1_contains {
+                                    let mut ban = (*self).clone();
+                                    if self.states[xx1 as usize][yy1 as usize].is_some() {
+                                        x1y1_ck = true;
+                                    }
+                                    if ban.move_piece(x, y, -i, i, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: i,
+                                                dy: i,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, -i, i, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: i,
+                                                dy: i,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+
+                                if !x2y1_ck && xx2_contains && yy1_contains {
+                                    let mut ban = (*self).clone();
+                                    if self.states[xx2 as usize][yy1 as usize].is_some() {
+                                        x2y1_ck = true;
+                                    }
+                                    if ban.move_piece(x, y, i, i, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: -i,
+                                                dy: i,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, i, i, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: -i,
+                                                dy: i,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+
+                                if !x1y2_ck && xx1_contains && yy2_contains {
+                                    let mut ban = (*self).clone();
+                                    if self.states[xx1 as usize][yy2 as usize].is_some() {
+                                        x1y2_ck = true;
+                                    }
+                                    if ban.move_piece(x, y, -i, -i, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: i,
+                                                dy: -i,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, -i, -i, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: i,
+                                                dy: -i,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+
+                                if !x2y2_ck && xx2_contains && yy2_contains {
+                                    if self.states[xx2 as usize][yy2 as usize].is_some() {
+                                        x2y2_ck = true;
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if ban.move_piece(x, y, i, -i, false).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: -i,
+                                                dy: -i,
+                                                with_promote: false,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if !s.promoted
+                                        && ban.move_piece(x, y, i, -i, true).is_ok()
+                                        && !ban.is_check(turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: -i,
+                                                dy: -i,
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        if s.piece == Piece::Kyosha && !s.promoted {
+                            for i in 0..8 {
+                                let yy = if s.turn {
+                                    y as isize - i
+                                } else {
+                                    y as isize + i
+                                };
+                                if (0..=8).contains(&yy) {
+                                    let mut ban = (*self).clone();
+                                    if ban
+                                        .move_piece(x, y, 0, if s.turn { -i } else { i }, false)
+                                        .is_ok()
+                                        && !ban.is_check(s.turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: 0,
+                                                dy: if s.turn { -i } else { i },
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                    let mut ban = (*self).clone();
+                                    if ban
+                                        .move_piece(x, y, 0, if s.turn { -i } else { i }, true)
+                                        .is_ok()
+                                        && !ban.is_check(s.turn)
+                                    {
+                                        bans.push((
+                                            ban,
+                                            Hand::Movement {
+                                                x,
+                                                y,
+                                                dx: 0,
+                                                dy: if s.turn { -i } else { i },
+                                                with_promote: true,
+                                            },
+                                        ));
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
                     let pieces = if turn {

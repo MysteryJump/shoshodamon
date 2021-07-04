@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use rand::{thread_rng, Rng};
-use shoshodamon::{Ban, Hand, Piece};
+use shoshodamon::{evaluator::eval, Ban, Hand, Piece};
 
 const START_POS: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
@@ -83,12 +83,17 @@ fn main() {
                 } else {
                     panic!();
                 };
+                let mut ban = Ban::parse_sfen(&sp).unwrap();
+                if args.is_empty() {
+                    current_ban = Some(ban);
+                    continue;
+                }
                 if args[0] != "moves" {
                     panic!();
                 } else {
                     args = &args[1..];
                 }
-                let mut ban = Ban::parse_sfen(&sp).unwrap();
+
                 for mv in args {
                     let hand = (*mv).try_into().unwrap();
                     match hand {
@@ -106,13 +111,19 @@ fn main() {
             }
             "go" => {
                 if let Some(ban) = current_ban.clone() {
-                    let bans = ban.get_possibilities_ban(*ban.turn());
-                    if bans.is_empty() {
-                        println!("bestmove resign")
+                    let result = eval(&ban, 100000);
+                    if let Some(r) = result {
+                        let hand = &r.0[0];
+                        println!("bestmove {}", String::from(hand.clone()))
                     } else {
-                        let ran = thread_rng().gen_range(0..bans.len());
-                        let hand = bans[ran].1.clone();
-                        println!("bestmove {}", String::from(hand));
+                        let bans = ban.get_possibilities_ban(*ban.turn());
+                        if bans.is_empty() {
+                            println!("bestmove resign")
+                        } else {
+                            let ran = thread_rng().gen_range(0..bans.len());
+                            let hand = bans[ran].1.clone();
+                            println!("bestmove {}", String::from(hand));
+                        }
                     }
                 } else {
                     panic!()
