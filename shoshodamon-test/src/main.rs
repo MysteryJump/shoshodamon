@@ -77,6 +77,7 @@ fn main() {
                     args = &args[1..];
                     START_POS.to_string()
                 } else if args[0] == "sfen" {
+                    args = &args[1..];
                     let sfen = format!("{} {} {} {}", args[0], args[1], args[2], args[3]);
                     args = &args[4..];
                     sfen
