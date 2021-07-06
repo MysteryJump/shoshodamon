@@ -1,59 +1,23 @@
 use std::convert::TryInto;
 
 use rand::{thread_rng, Rng};
-use shoshodamon::{evaluator::eval, Ban, Hand, Piece};
-
-const START_POS: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
-
-#[allow(dead_code)]
-fn test() {
-    let mut s = shoshodamon::Ban::parse_sfen(START_POS).unwrap();
-    // println!("{}", s.to_sfen());
-    s.move_piece(1, 6, 0, -1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(7, 2, 0, 1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(1, 5, 0, -1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(7, 3, 0, 1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(5, 8, 1, -1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(3, 0, -1, 1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(1, 4, 0, -1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(1, 2, 0, 1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(1, 7, 0, -4, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.put_piece(Piece::Fu, 1, 2).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(1, 3, 0, -1, true).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(8, 0, 0, 1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(1, 2, 1, -1, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(7, 1, 0, 2, false).unwrap();
-    println!("{}", s.to_sfen());
-    s.move_piece(2, 1, 0, -1, false).unwrap();
-    println!("{}", s.to_sfen());
-
-    // s.move_piece(0, 0, 0, 1, false).unwrap();
-    let count = s.get_possibilities_ban(*s.turn());
-    println!("{}", count.len());
-    for item in count {
-        println!("{}", item.0.to_sfen());
-    }
-    // s.move_piece(2, 0, 1, 0, false).unwrap();
-    println!("{} {}", s.is_check(true), s.is_check(false));
-    // s.move_piece(x, y, dx, dy, with_promote)
-    // println!("{:#?}", s);
-    println!("{}", s.to_sfen());
-}
+use shoshodamon::{ban2::Ban2 as Ban, evaluator::eval, Hand};
 
 fn main() {
+    // let ban =
+    //     Ban::from_sfen("lnsg2k2/6G2/ppp6/3p+R4/9/9/PPPPPPP1P/1B7/LNSGKGSNL w RBNL6Ps 1").unwrap();
+
+    // let possibes = ban.get_possibility_bans(ban.turn);
+    // eval(&ban, 100);
+    // for item in possibes {
+    //     println!(
+    //         "{} {:?} {}",
+    //         item.0.to_sfen(),
+    //         item.1.clone(),
+    //         String::from(item.1)
+    //     );
+    // }
+
     let mut current_ban = None;
     loop {
         let mut input = String::new();
@@ -75,7 +39,7 @@ fn main() {
                 let mut args = &args[1..];
                 let sp = if args[0] == "startpos" {
                     args = &args[1..];
-                    START_POS.to_string()
+                    shoshodamon::START_POS.to_string()
                 } else if args[0] == "sfen" {
                     args = &args[1..];
                     let sfen = format!("{} {} {} {}", args[0], args[1], args[2], args[3]);
@@ -84,7 +48,7 @@ fn main() {
                 } else {
                     panic!();
                 };
-                let mut ban = Ban::parse_sfen(&sp).unwrap();
+                let mut ban = Ban::from_sfen(&sp).unwrap();
                 if args.is_empty() {
                     current_ban = Some(ban);
                     continue;
@@ -104,7 +68,15 @@ fn main() {
                             dx,
                             dy,
                             with_promote,
-                        } => ban.move_piece(x, y, dx, dy, with_promote).unwrap(),
+                        } => ban
+                            .move_piece(
+                                x,
+                                y,
+                                (x as isize + dx) as usize,
+                                (y as isize + dy) as usize,
+                                with_promote,
+                            )
+                            .unwrap(),
                         Hand::Putting { piece, x, y } => ban.put_piece(piece, x, y).unwrap(),
                     }
                 }
@@ -112,12 +84,23 @@ fn main() {
             }
             "go" => {
                 if let Some(ban) = current_ban.clone() {
-                    let result = eval(&ban, 100000);
+                    let depth = 1000000;
+                    let result = eval(&ban, depth);
                     if let Some(r) = result {
                         let hand = &r.0[0];
+                        println!(
+                            "info depth {} nodes {} score cp {} pv {}",
+                            r.0.len(),
+                            depth,
+                            r.1,
+                            r.0.iter()
+                                .map(|x| String::from(x.clone()))
+                                .collect::<Vec<_>>()
+                                .join(" ")
+                        );
                         println!("bestmove {}", String::from(hand.clone()))
                     } else {
-                        let bans = ban.get_possibilities_ban(*ban.turn());
+                        let bans = ban.get_possibility_bans(ban.turn);
                         if bans.is_empty() {
                             println!("bestmove resign")
                         } else {
@@ -136,5 +119,4 @@ fn main() {
             _ => panic!(),
         }
     }
-    // test()
 }

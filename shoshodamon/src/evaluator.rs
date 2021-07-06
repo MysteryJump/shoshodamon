@@ -6,14 +6,18 @@ use std::{
         Arc, Mutex,
     },
     thread,
+    time::Duration,
 };
 
-use crate::{Ban, Hand, Piece};
+use crate::{ban2::Ban2 as Ban, Hand, Piece};
 
 struct BanBeforeHands(Ban, Vec<Hand>);
 
 pub fn eval(ban: &Ban, max_count: i32) -> Option<(Vec<Hand>, i32)> {
-    let possiblities = ban.get_possibilities_ban(*ban.turn());
+    let possiblities = ban.get_possibility_bans(ban.turn);
+    if possiblities.is_empty() || ban.is_check_mate(ban.turn) {
+        return None;
+    }
     let thread_count = 8;
     let mut threads = Vec::new();
     let (sender, reader) = crossbeam::channel::unbounded::<BanBeforeHands>();
@@ -26,8 +30,8 @@ pub fn eval(ban: &Ban, max_count: i32) -> Option<(Vec<Hand>, i32)> {
         let moves = moves.clone();
         let count = count.clone();
         threads.push(thread::spawn(move || {
-            while let Ok(mes) = reader.recv() {
-                let possiblities = mes.0.get_possibilities_ban(*mes.0.turn());
+            while let Ok(mes) = reader.recv_timeout(Duration::from_millis(1000)) {
+                let possiblities = mes.0.get_possibility_bans(mes.0.turn);
                 if possiblities.is_empty() {
                     break;
                 }
@@ -74,7 +78,17 @@ pub fn eval(ban: &Ban, max_count: i32) -> Option<(Vec<Hand>, i32)> {
         .filter(|x| x.0.len() >= min_depth as usize)
         .collect::<Vec<_>>();
     filtered.sort_unstable_by_key(|x| x.1);
-    let result = *filtered[0];
+    println!("{}", filtered.len());
+    println!(
+        "info string Front: {}, Back: {}",
+        filtered[0].1,
+        filtered.last().unwrap().1
+    );
+    let result = if !ban.turn {
+        *filtered[0]
+    } else {
+        *filtered.last().unwrap()
+    };
     Some((result.0.clone(), result.1))
 }
 
@@ -82,9 +96,9 @@ fn get_evaluated_value(ban: &Ban) -> i32 {
     let mut primary = 0;
     let mut secondary = 0;
 
-    for i in 0..9 {
-        for j in 0..9 {
-            if let Some(piece) = &ban.states[i][j] {
+    for i in 1..=9 {
+        for j in 1..=9 {
+            if let Some(piece) = ban.get_position(i, j) {
                 let score = get_score(&(piece.piece, piece.promoted));
                 if piece.turn {
                     primary += score;
