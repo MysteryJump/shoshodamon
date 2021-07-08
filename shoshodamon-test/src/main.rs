@@ -1,7 +1,11 @@
 use std::convert::TryInto;
 
 use rand::{thread_rng, Rng};
-use shoshodamon::{ban2::Ban2 as Ban, evaluator::eval, Hand};
+use shoshodamon::{
+    ban2::Ban2 as Ban,
+    evaluator::{self, alpha_beta2},
+    Hand,
+};
 
 fn main() {
     // let ban =
@@ -84,8 +88,10 @@ fn main() {
             }
             "go" => {
                 if let Some(ban) = current_ban.clone() {
-                    let depth = 1000000;
-                    let result = eval(&ban, depth);
+                    // let depth = 1000000;
+                    let result = alpha_beta2(&ban, Vec::new(), -50000, 50000, 5, true); // eval(&ban, depth);
+                    let depth = evaluator::COUNT.load(std::sync::atomic::Ordering::Relaxed);
+                    evaluator::COUNT.store(0, std::sync::atomic::Ordering::Release);
                     if let Some(r) = result {
                         let hand = &r.0[0];
                         println!(
